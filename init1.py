@@ -461,10 +461,11 @@ def viewFlight():
 	# we will assume flight operated by airline are atomic; thus flight must complete before 30 day mark 
 	query = ( 
 			"SELECT flight_num, airline_name, depart_date_time, departure_airport, arrival_airport, airplane_id, arrive_date_time, base_price, stat, AVG(rating) AS avg_rat FROM "
-			"(SELECT * from flight WHERE airline_name = %s AND arrive_date_time >= %s AND arrive_date_time <= %s) as flight NATURAL LEFT OUTER JOIN review "
+			"flight NATURAL LEFT OUTER JOIN review "
+			"WHERE airline_name = %s "
 			"GROUP BY flight_num, airline_name, depart_date_time" 
 			)
-	cursor.execute(query, (affiliated_airline, starttime, endtime))
+	cursor.execute(query, (affiliated_airline))
 	data = cursor.fetchall()
 	cursor.close()
 	error = None 
@@ -486,35 +487,66 @@ def viewFlight():
 		cursor = conn.cursor()
 		query = ""
 		if reference == "past":
-			query = (
-			"SELECT flight_num, airline_name, depart_date_time, departure_airport, arrival_airport, airplane_id, arrive_date_time, base_price, stat, AVG(rating) as avg_rat FROM "
-				"(" 
-					"SELECT * from flight where airline_name = %s AND arrive_date_time < %s AND "
-					"(departure_airport = %s OR arrival_airport = %s OR (departure_airport IN (SELECT name FROM airport WHERE city = %s)) OR (arrival_airport IN (SELECT name FROM airport WHERE city = %s))) "
-				") as flight NATURAL LEFT OUTER JOIN review "
-				"GROUP BY flight_num, airline_name, depart_date_time " 
-			) 
-			cursor.execute(query, (affiliated_airline, rangeLow, source_air, dest_air, source_city, dest_city))
+			if source_air or dest_air or source_city or dest_city:
+				query = (
+				"SELECT flight_num, airline_name, depart_date_time, departure_airport, arrival_airport, airplane_id, arrive_date_time, base_price, stat, AVG(rating) as avg_rat FROM "
+					"(" 
+						"SELECT * from flight where airline_name = %s AND arrive_date_time < %s AND "
+						"(departure_airport = %s OR arrival_airport = %s OR (departure_airport IN (SELECT name FROM airport WHERE city = %s)) OR (arrival_airport IN (SELECT name FROM airport WHERE city = %s))) "
+					") as flight NATURAL LEFT OUTER JOIN review "
+					"GROUP BY flight_num, airline_name, depart_date_time " 
+				) 
+				cursor.execute(query, (affiliated_airline, rangeLow, source_air, dest_air, source_city, dest_city))
+			else:
+				query = (
+				"SELECT flight_num, airline_name, depart_date_time, departure_airport, arrival_airport, airplane_id, arrive_date_time, base_price, stat, AVG(rating) as avg_rat FROM "
+					"(" 
+						"SELECT * from flight where airline_name = %s AND arrive_date_time < %s "
+					") as flight NATURAL LEFT OUTER JOIN review "
+					"GROUP BY flight_num, airline_name, depart_date_time " 
+				) 
+				cursor.execute(query, (affiliated_airline, rangeLow))
+			
 		elif reference == "current":
-			query = (	
-			"SELECT flight_num, airline_name, depart_date_time, departure_airport, arrival_airport, airplane_id, arrive_date_time, base_price, stat, AVG(rating) as avg_rat FROM "
-				"("
-					"SELECT * from flight where airline_name = %s AND arrive_date_time >= %s AND arrive_date_time <= %s AND "
-					"(departure_airport = %s OR arrival_airport = %s OR (departure_airport IN (SELECT name FROM airport WHERE city = %s)) OR (arrival_airport IN (SELECT name FROM airport WHERE city = %s))) "
-				") as flight NATURAL LEFT OUTER JOIN review "
-				"GROUP BY flight_num, airline_name, depart_date_time" 
-			)
-			cursor.execute(query, (affiliated_airline, rangeLow, rangeHigh, source_air, dest_air, source_city, dest_city))
+			if source_air or dest_air or source_city or dest_city:
+				query = (	
+					"SELECT flight_num, airline_name, depart_date_time, departure_airport, arrival_airport, airplane_id, arrive_date_time, base_price, stat, AVG(rating) as avg_rat FROM "
+						"("
+							"SELECT * from flight where airline_name = %s AND arrive_date_time >= %s AND arrive_date_time <= %s AND "
+							"(departure_airport = %s OR arrival_airport = %s OR (departure_airport IN (SELECT name FROM airport WHERE city = %s)) OR (arrival_airport IN (SELECT name FROM airport WHERE city = %s))) "
+						") as flight NATURAL LEFT OUTER JOIN review "
+						"GROUP BY flight_num, airline_name, depart_date_time" 
+					)
+				cursor.execute(query, (affiliated_airline, rangeLow, rangeHigh, source_air, dest_air, source_city, dest_city))
+			else:
+				query = (	
+					"SELECT flight_num, airline_name, depart_date_time, departure_airport, arrival_airport, airplane_id, arrive_date_time, base_price, stat, AVG(rating) as avg_rat FROM "
+						"("
+							"SELECT * from flight where airline_name = %s AND arrive_date_time >= %s AND arrive_date_time <= %s "
+						") as flight NATURAL LEFT OUTER JOIN review "
+						"GROUP BY flight_num, airline_name, depart_date_time" 
+					)
+				cursor.execute(query, (affiliated_airline, rangeLow, rangeHigh))
 		else:
-			query = (
-			"SELECT flight_num, airline_name, depart_date_time, departure_airport, arrival_airport, airplane_id, arrive_date_time, base_price, stat, AVG(rating) as avg_rat FROM "
-				"("
-					"SELECT * FROM flight WHERE airline_name = %s AND arrive_date_time > %s AND " 
-					"(departure_airport = %s OR arrival_airport = %s OR (departure_airport IN (SELECT name FROM airport WHERE city = %s)) OR (arrival_airport IN (SELECT name FROM airport WHERE city = %s))) "
-				") as flight NATURAL LEFT OUTER JOIN review "
-				"GROUP BY flight_num, airline_name, depart_date_time" 
-			)
-			cursor.execute(query, (affiliated_airline, rangeHigh, source_air, dest_air, source_city, dest_city))
+			if source_air or dest_air or source_city or dest_city:
+				query = (
+					"SELECT flight_num, airline_name, depart_date_time, departure_airport, arrival_airport, airplane_id, arrive_date_time, base_price, stat, AVG(rating) as avg_rat FROM "
+						"("
+							"SELECT * FROM flight WHERE airline_name = %s AND arrive_date_time > %s AND " 
+							"(departure_airport = %s OR arrival_airport = %s OR (departure_airport IN (SELECT name FROM airport WHERE city = %s)) OR (arrival_airport IN (SELECT name FROM airport WHERE city = %s))) "
+						") as flight NATURAL LEFT OUTER JOIN review "
+						"GROUP BY flight_num, airline_name, depart_date_time" 
+				)
+				cursor.execute(query, (affiliated_airline, rangeHigh, source_air, dest_air, source_city, dest_city))
+			else:
+				query = (
+					"SELECT flight_num, airline_name, depart_date_time, departure_airport, arrival_airport, airplane_id, arrive_date_time, base_price, stat, AVG(rating) as avg_rat FROM "
+						"("
+							"SELECT * FROM flight WHERE airline_name = %s AND arrive_date_time > %s " 
+						") as flight NATURAL LEFT OUTER JOIN review "
+						"GROUP BY flight_num, airline_name, depart_date_time" 
+				)
+				cursor.execute(query, (affiliated_airline, rangeHigh))
 		data = cursor.fetchall()
 		cursor.close()
 	# if just view button press, proceed to return as normal 
